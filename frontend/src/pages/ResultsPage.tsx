@@ -36,10 +36,16 @@ export default function ResultsPage() {
   });
 
   // Get election window
-  const { data: electionWindow } = useReadContract({
+  const { data: startTime } = useReadContract({
     address: VOTING_ADDRESS,
     abi: VOTING_ABI,
-    functionName: 'electionWindow',
+    functionName: 'start',
+  });
+
+  const { data: endTime } = useReadContract({
+    address: VOTING_ADDRESS,
+    abi: VOTING_ABI,
+    functionName: 'end',
   });
 
   // Determine which session to display
@@ -56,10 +62,11 @@ export default function ResultsPage() {
 
   // Check if election is active
   const isElectionActive = Boolean(
-    electionWindow &&
-      (electionWindow as [bigint, bigint])[0] > 0 &&
-      BigInt(Math.floor(Date.now() / 1000)) >= (electionWindow as [bigint, bigint])[0] &&
-      BigInt(Math.floor(Date.now() / 1000)) <= (electionWindow as [bigint, bigint])[1]
+    startTime &&
+      endTime &&
+      (startTime as bigint) > 0n &&
+      BigInt(Math.floor(Date.now() / 1000)) >= (startTime as bigint) &&
+      BigInt(Math.floor(Date.now() / 1000)) <= (endTime as bigint)
   );
 
   // Manual refresh effect
@@ -118,13 +125,13 @@ export default function ResultsPage() {
           </Grid>
         </Grid>
 
-        {electionWindow && (electionWindow as [bigint, bigint])[0] > 0n ? (
+        {startTime && endTime && (startTime as bigint) > 0n ? (
           <Box sx={{ mt: 2 }}>
             <Typography variant="caption" color="text.secondary" display="block">
-              Start: {new Date(Number((electionWindow as [bigint, bigint])[0]) * 1000).toLocaleString()}
+              Start: {new Date(Number(startTime as bigint) * 1000).toLocaleString()}
             </Typography>
             <Typography variant="caption" color="text.secondary" display="block">
-              End: {new Date(Number((electionWindow as [bigint, bigint])[1]) * 1000).toLocaleString()}
+              End: {new Date(Number(endTime as bigint) * 1000).toLocaleString()}
             </Typography>
           </Box>
         ) : null}

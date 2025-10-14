@@ -66,7 +66,7 @@ export function useVotingContract() {
     writeContract({
       address: VOTING_ADDRESS,
       abi: VOTING_ABI,
-      functionName: 'setVoterRoot',
+      functionName: 'setVoterMerkleRoot',
       args: [root],
     });
   };

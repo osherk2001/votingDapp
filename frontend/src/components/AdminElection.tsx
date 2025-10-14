@@ -23,10 +23,16 @@ export default function AdminElection() {
     functionName: 'sessionId',
   });
 
-  const { data: electionWindow } = useReadContract({
+  const { data: startData } = useReadContract({
     address: VOTING_ADDRESS,
     abi: VOTING_ABI,
-    functionName: 'electionWindow',
+    functionName: 'start',
+  });
+
+  const { data: endData } = useReadContract({
+    address: VOTING_ADDRESS,
+    abi: VOTING_ABI,
+    functionName: 'end',
   });
 
   const [startTime, setStartTime] = useState<Date | null>(new Date());
@@ -44,11 +50,13 @@ export default function AdminElection() {
     startElection(startTimestamp, endTimestamp);
   };
 
-  const isElectionActive =
-    electionWindow &&
-    (electionWindow as [bigint, bigint])[0] > 0 &&
-    BigInt(Math.floor(Date.now() / 1000)) >= (electionWindow as [bigint, bigint])[0] &&
-    BigInt(Math.floor(Date.now() / 1000)) <= (electionWindow as [bigint, bigint])[1];
+  const isElectionActive = Boolean(
+    startData &&
+    endData &&
+    (startData as bigint) > 0n &&
+    BigInt(Math.floor(Date.now() / 1000)) >= (startData as bigint) &&
+    BigInt(Math.floor(Date.now() / 1000)) <= (endData as bigint)
+  );
 
   return (
     <Box>
@@ -80,15 +88,15 @@ export default function AdminElection() {
           </Grid>
         </Grid>
 
-        {electionWindow && (electionWindow as [bigint, bigint])[0] > 0n ? (
+        {startData && endData && (startData as bigint) > 0n ? (
           <Box sx={{ mt: 2 }}>
             <Typography variant="body2" color="text.secondary">
               Start Time:{' '}
-              {new Date(Number((electionWindow as [bigint, bigint])[0]) * 1000).toLocaleString()}
+              {new Date(Number(startData as bigint) * 1000).toLocaleString()}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               End Time:{' '}
-              {new Date(Number((electionWindow as [bigint, bigint])[1]) * 1000).toLocaleString()}
+              {new Date(Number(endData as bigint) * 1000).toLocaleString()}
             </Typography>
           </Box>
         ) : null}

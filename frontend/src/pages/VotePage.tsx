@@ -22,13 +22,19 @@ export default function VotePage() {
   const { data: currentSessionId } = useReadContract({
     address: VOTING_ADDRESS,
     abi: VOTING_ABI,
-    functionName: 'currentSessionId',
+    functionName: 'sessionId',
   });
 
-  const { data: electionWindow } = useReadContract({
+  const { data: startTime } = useReadContract({
     address: VOTING_ADDRESS,
     abi: VOTING_ABI,
-    functionName: 'electionWindow',
+    functionName: 'start',
+  });
+
+  const { data: endTime } = useReadContract({
+    address: VOTING_ADDRESS,
+    abi: VOTING_ABI,
+    functionName: 'end',
   });
 
   const { data: hasVoted } = useReadContract({
@@ -38,15 +44,13 @@ export default function VotePage() {
     args: address && currentSessionId ? [currentSessionId, address] : undefined,
   });
 
-  const endTime = electionWindow ? (electionWindow as [bigint, bigint])[1] : undefined;
-  const startTime = electionWindow ? (electionWindow as [bigint, bigint])[0] : undefined;
-  const countdown = useCountdown(endTime);
+  const countdown = useCountdown(endTime as bigint | undefined);
 
   const [votingCandidateId, setVotingCandidateId] = useState<number | null>(null);
 
   const now = BigInt(Math.floor(Date.now() / 1000));
   const isElectionActive =
-    startTime && endTime && now >= startTime && now <= endTime;
+    startTime && endTime && now >= (startTime as bigint) && now <= (endTime as bigint);
 
   const handleVote = (candidateId: number) => {
     if (!proof || proof.length === 0) {
@@ -91,7 +95,7 @@ export default function VotePage() {
   }
 
   if (!isElectionActive) {
-    const hasNotStarted = startTime && now < startTime;
+    const hasNotStarted = startTime && now < (startTime as bigint);
     
     return (
       <Box>
