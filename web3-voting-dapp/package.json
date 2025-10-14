@@ -1,0 +1,40 @@
+{
+  "name": "web3-voting-dapp",
+  "version": "1.0.0",
+  "description": "A decentralized voting application built with Web3 technologies.",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "hardhat test",
+    "compile": "hardhat compile",
+    "start": "ts-node src/index.ts",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "ethers": "^5.6.9",
+    "dotenv": "^10.0.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.0",
+    "@openzeppelin/contracts": "^4.6.0",
+    "hardhat": "^2.8.0",
+    "typescript": "^4.5.4",
+    "eslint": "^8.0.0",
+    "prettier": "^2.5.1",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "editorconfig": "^0.15.0",
+    "merkletreejs": "^0.4.0",
+    "keccak256": "^1.0.3"
+  },
+  "keywords": [
+    "web3",
+    "voting",
+    "dapp",
+    "ethereum"
+  ],
+  "author": "",
+  "license": "MIT"
+}
