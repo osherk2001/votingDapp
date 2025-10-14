@@ -71,12 +71,12 @@ export function useVotingContract() {
     });
   };
 
-  const startElection = (sessionId: bigint, startTime: bigint, endTime: bigint) => {
+  const startElection = (startTime: bigint, endTime: bigint) => {
     writeContract({
       address: VOTING_ADDRESS,
       abi: VOTING_ABI,
       functionName: 'startElection',
-      args: [sessionId, startTime, endTime],
+      args: [startTime, endTime],
     });
   };
 
@@ -143,4 +143,97 @@ export function useCandidates() {
   });
 
   return candidates.filter((c): c is Candidate => c !== null);
+}
+
+export interface CandidateResult extends Candidate {
+  votes: number;
+  percentage: number;
+}
+
+export function useElectionResults(sessionId: bigint, enablePolling = false) {
+  // Get candidate count
+  const { data: count } = useReadContract({
+    address: VOTING_ADDRESS,
+    abi: VOTING_ABI,
+    functionName: 'candidateCount',
+  });
+
+  const candidateIds = Array.from({ length: Number(count || 0) }, (_, i) => i + 1);
+
+  // Get winner info
+  const { data: winnerData, refetch: refetchWinner } = useReadContract({
+    address: VOTING_ADDRESS,
+    abi: VOTING_ABI,
+    functionName: 'getWinner',
+    args: [sessionId],
+    query: {
+      refetchInterval: enablePolling ? 5000 : false, // Poll every 5 seconds if enabled
+    },
+  });
+
+  // Get all candidates with their votes
+  const candidatesWithVotes = candidateIds.map((id) => {
+    const { data: candidateData } = useReadContract({
+      address: VOTING_ADDRESS,
+      abi: VOTING_ABI,
+      functionName: 'getCandidate',
+      args: [BigInt(id)],
+      query: {
+        refetchInterval: enablePolling ? 5000 : false,
+      },
+    });
+
+    const { data: voteCount } = useReadContract({
+      address: VOTING_ADDRESS,
+      abi: VOTING_ABI,
+      functionName: 'votes',
+      args: [sessionId, BigInt(id)],
+      query: {
+        refetchInterval: enablePolling ? 5000 : false,
+      },
+    });
+
+    if (!candidateData) return null;
+
+    const [candidateId, name, positions] = candidateData as [bigint, string, [bigint, bigint, bigint]];
+    const votes = Number(voteCount || 0n);
+
+    return {
+      id: Number(candidateId),
+      name,
+      positions: [Number(positions[0]), Number(positions[1]), Number(positions[2])] as [
+        number,
+        number,
+        number
+      ],
+      votes,
+      percentage: 0, // Will calculate after we have total
+    } as CandidateResult;
+  });
+
+  const validCandidates = candidatesWithVotes.filter((c): c is CandidateResult => c !== null);
+
+  // Calculate total votes and percentages
+  const totalVotes = validCandidates.reduce((sum, c) => sum + c.votes, 0);
+  const results = validCandidates.map((c) => ({
+    ...c,
+    percentage: totalVotes > 0 ? (c.votes / totalVotes) * 100 : 0,
+  }));
+
+  // Sort by votes descending
+  results.sort((a, b) => b.votes - a.votes);
+
+  const winner = winnerData
+    ? {
+        id: Number((winnerData as [bigint, bigint])[0]),
+        votes: Number((winnerData as [bigint, bigint])[1]),
+      }
+    : null;
+
+  return {
+    results,
+    totalVotes,
+    winner,
+    refetch: refetchWinner,
+  };
 }

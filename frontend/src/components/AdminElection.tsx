@@ -20,7 +20,7 @@ export default function AdminElection() {
   const { data: currentSessionId } = useReadContract({
     address: VOTING_ADDRESS,
     abi: VOTING_ABI,
-    functionName: 'currentSessionId',
+    functionName: 'sessionId',
   });
 
   const { data: electionWindow } = useReadContract({
@@ -29,7 +29,6 @@ export default function AdminElection() {
     functionName: 'electionWindow',
   });
 
-  const [sessionId, setSessionId] = useState('');
   const [startTime, setStartTime] = useState<Date | null>(new Date());
   const [endTime, setEndTime] = useState<Date | null>(
     new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -37,12 +36,12 @@ export default function AdminElection() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sessionId || !startTime || !endTime) return;
+    if (!startTime || !endTime) return;
 
     const startTimestamp = BigInt(Math.floor(startTime.getTime() / 1000));
     const endTimestamp = BigInt(Math.floor(endTime.getTime() / 1000));
 
-    startElection(BigInt(sessionId), startTimestamp, endTimestamp);
+    startElection(startTimestamp, endTimestamp);
   };
 
   const isElectionActive =
@@ -102,17 +101,6 @@ export default function AdminElection() {
 
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <form onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              label="Session ID"
-              type="number"
-              value={sessionId}
-              onChange={(e) => setSessionId(e.target.value)}
-              margin="normal"
-              required
-              helperText="Use incremental IDs (e.g., 1, 2, 3...)"
-            />
-
             <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={12} md={6}>
                 <DateTimePicker
@@ -145,7 +133,7 @@ export default function AdminElection() {
             <Button
               type="submit"
               variant="contained"
-              disabled={isPending || isConfirming || !sessionId || !startTime || !endTime}
+              disabled={isPending || isConfirming || !startTime || !endTime}
               sx={{ mt: 3 }}
             >
               {isPending || isConfirming ? <CircularProgress size={24} /> : 'Start Election'}

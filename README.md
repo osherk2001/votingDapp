@@ -160,17 +160,34 @@ npx hardhat run scripts/results.ts --network localhost
 
 ## 🌐 Deploy to Sepolia Testnet
 
-### Setup
+**📖 See detailed guide:** [SEPOLIA_DEPLOYMENT.md](./SEPOLIA_DEPLOYMENT.md)
 
-1. Get Sepolia ETH from faucet: [sepoliafaucet.com](https://sepoliafaucet.com/)
-2. Get Infura/Alchemy RPC URL
-3. Update `.env` with your `PRIVATE_KEY` and `SEPOLIA_RPC_URL`
+### Quick Setup
 
-### Deploy
+1. **Get Sepolia ETH** from faucets:
+   - https://sepoliafaucet.com/
+   - https://faucets.chain.link/sepolia
+
+2. **Get RPC URL** from:
+   - [Alchemy](https://www.alchemy.com/) (Recommended)
+   - [Infura](https://infura.io/)
+
+3. **Update `.env`:**
+```env
+PRIVATE_KEY=your_private_key_without_0x
+SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR-API-KEY
+```
+
+### Deploy to Sepolia
 
 ```bash
+# Compile first
+npm run compile
+
 # Deploy contracts
 npx hardhat run scripts/deploy.ts --network sepolia
+
+# Save the addresses to .env, then continue:
 
 # Grant MINTER_ROLE
 npx hardhat run scripts/grantMinter.ts --network sepolia
@@ -180,6 +197,16 @@ npx hardhat run scripts/merkle/generate.ts
 npx hardhat run scripts/setRoot.ts --network sepolia
 npx hardhat run scripts/addCandidates.ts --network sepolia
 npx hardhat run scripts/startElection.ts --network sepolia
+```
+
+### Verify Contracts on Etherscan
+
+```bash
+# Get API key from https://etherscan.io/myapikey
+# Add to .env: ETHERSCAN_API_KEY=your_key
+
+npx hardhat verify --network sepolia <BAL_TOKEN_ADDRESS> "BAL Token" "BAL"
+npx hardhat verify --network sepolia <VOTING_ADDRESS> <BAL_TOKEN_ADDRESS> 10000000000000000000
 ```
 
 ## 📁 Project Structure

@@ -5,14 +5,14 @@ import { injected, walletConnect } from 'wagmi/connectors';
 const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '';
 
 export const config = createConfig({
-  chains: [hardhat, sepolia, mainnet],
+  chains: [sepolia, hardhat, mainnet],
   connectors: [
     injected(),
     walletConnect({ projectId }),
   ],
   transports: {
-    [hardhat.id]: http('http://127.0.0.1:8545'),
     [sepolia.id]: http(),
+    [hardhat.id]: http('http://127.0.0.1:8545'),
     [mainnet.id]: http(),
   },
 });
