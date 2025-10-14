@@ -11,6 +11,9 @@ typechain-types/
 .env
 .env.local
 
+# Data files
+data/
+
 # IDE
 .vscode/
 .idea/
