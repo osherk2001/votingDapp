@@ -112,33 +112,36 @@ export function useVotingContract() {
 }
 
 export function useCandidates() {
-  const { data: count } = useReadContract({
+  // Use the new getAllCandidates function to fetch all candidates in one call
+  const { data } = useReadContract({
     address: VOTING_ADDRESS,
     abi: VOTING_ABI,
-    functionName: 'candidateCount',
+    functionName: 'getAllCandidates',
   });
 
-  const candidateIds = Array.from({ length: Number(count || 0) }, (_, i) => i + 1);
+  if (!data) return [];
 
-  const candidates = candidateIds.map((id) => {
-    const { data } = useReadContract({
-      address: VOTING_ADDRESS,
-      abi: VOTING_ABI,
-      functionName: 'getCandidate',
-      args: [BigInt(id)],
-    });
+  // getAllCandidates returns: (candidateIds[], names[], allPositions[], activeFlags[])
+  const [candidateIds, names, allPositions, activeFlags] = data as [
+    bigint[],
+    string[],
+    bigint[],
+    boolean[]
+  ];
 
-    if (!data) return null;
+  // Map the flattened arrays back to candidate objects
+  const candidates = candidateIds.map((id, index) => {
+    // Only return active candidates
+    if (!activeFlags[index]) return null;
 
-    const [candidateId, name, positions] = data as [bigint, string, [bigint, bigint, bigint]];
     return {
-      id: Number(candidateId),
-      name,
-      positions: [Number(positions[0]), Number(positions[1]), Number(positions[2])] as [
-        number,
-        number,
-        number
-      ],
+      id: Number(id),
+      name: names[index],
+      positions: [
+        Number(allPositions[index * 3]),
+        Number(allPositions[index * 3 + 1]),
+        Number(allPositions[index * 3 + 2]),
+      ] as [number, number, number],
     } as Candidate;
   });
 
@@ -151,15 +154,6 @@ export interface CandidateResult extends Candidate {
 }
 
 export function useElectionResults(sessionId: bigint, enablePolling = false) {
-  // Get candidate count
-  const { data: count } = useReadContract({
-    address: VOTING_ADDRESS,
-    abi: VOTING_ABI,
-    functionName: 'candidateCount',
-  });
-
-  const candidateIds = Array.from({ length: Number(count || 0) }, (_, i) => i + 1);
-
   // Get winner info
   const { data: winnerData, refetch: refetchWinner } = useReadContract({
     address: VOTING_ADDRESS,
@@ -167,51 +161,39 @@ export function useElectionResults(sessionId: bigint, enablePolling = false) {
     functionName: 'getWinner',
     args: [sessionId],
     query: {
-      refetchInterval: enablePolling ? 5000 : false, // Poll every 5 seconds if enabled
+      refetchInterval: enablePolling ? 5000 : false,
     },
   });
 
-  // Get all candidates with their votes
-  const candidatesWithVotes = candidateIds.map((id) => {
-    const { data: candidateData } = useReadContract({
-      address: VOTING_ADDRESS,
-      abi: VOTING_ABI,
-      functionName: 'getCandidate',
-      args: [BigInt(id)],
-      query: {
-        refetchInterval: enablePolling ? 5000 : false,
-      },
-    });
+  // Get all candidates
+  const allCandidates = useCandidates();
 
-    const { data: voteCount } = useReadContract({
-      address: VOTING_ADDRESS,
-      abi: VOTING_ABI,
-      functionName: 'votes',
-      args: [sessionId, BigInt(id)],
-      query: {
-        refetchInterval: enablePolling ? 5000 : false,
-      },
-    });
+  // Get all votes in a single batch call using the new getAllVotes function
+  const { data: allVotesData, refetch: refetchVotes } = useReadContract({
+    address: VOTING_ADDRESS,
+    abi: VOTING_ABI,
+    functionName: 'getAllVotes',
+    args: [sessionId],
+    query: {
+      refetchInterval: enablePolling ? 5000 : false,
+    },
+  });
 
-    if (!candidateData) return null;
-
-    const [candidateId, name, positions] = candidateData as [bigint, string, [bigint, bigint, bigint]];
-    const votes = Number(voteCount || 0n);
-
+  // Map candidates with their vote counts
+  const candidatesWithVotes = allCandidates.map((candidate) => {
+    const votesArray = allVotesData as bigint[] | undefined;
+    const votes = votesArray && votesArray[candidate.id] 
+      ? Number(votesArray[candidate.id]) 
+      : 0;
+    
     return {
-      id: Number(candidateId),
-      name,
-      positions: [Number(positions[0]), Number(positions[1]), Number(positions[2])] as [
-        number,
-        number,
-        number
-      ],
+      ...candidate,
       votes,
-      percentage: 0, // Will calculate after we have total
+      percentage: 0, // Will be calculated below
     } as CandidateResult;
   });
 
-  const validCandidates = candidatesWithVotes.filter((c): c is CandidateResult => c !== null);
+  const validCandidates = candidatesWithVotes;
 
   // Calculate total votes and percentages
   const totalVotes = validCandidates.reduce((sum, c) => sum + c.votes, 0);
@@ -234,6 +216,9 @@ export function useElectionResults(sessionId: bigint, enablePolling = false) {
     results,
     totalVotes,
     winner,
-    refetch: refetchWinner,
+    refetch: async () => {
+      await refetchWinner();
+      await refetchVotes();
+    },
   };
 }

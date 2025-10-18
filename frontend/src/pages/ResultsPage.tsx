@@ -19,6 +19,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Grid from '@mui/material/Grid';
+import Alert from '@mui/material/Alert';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import { useReadContract } from 'wagmi';
 import { VOTING_ABI, VOTING_ADDRESS } from '../lib/contracts';
@@ -29,20 +30,29 @@ export default function ResultsPage() {
   const [autoRefresh, setAutoRefresh] = useState(false);
 
   // Get current session ID
-  const { data: currentSessionId } = useReadContract({
+  const {
+    data: currentSessionId,
+    isLoading: loadingSessionId,
+    error: errorSessionId
+  } = useReadContract({
     address: VOTING_ADDRESS,
     abi: VOTING_ABI,
     functionName: 'sessionId',
   });
-
-  // Get election window
-  const { data: startTime } = useReadContract({
+  const {
+    data: startTime,
+    isLoading: loadingStart,
+    error: errorStart
+  } = useReadContract({
     address: VOTING_ADDRESS,
     abi: VOTING_ABI,
     functionName: 'start',
   });
-
-  const { data: endTime } = useReadContract({
+  const {
+    data: endTime,
+    isLoading: loadingEnd,
+    error: errorEnd
+  } = useReadContract({
     address: VOTING_ADDRESS,
     abi: VOTING_ABI,
     functionName: 'end',
@@ -54,11 +64,8 @@ export default function ResultsPage() {
       ? (currentSessionId as bigint | undefined) || 0n
       : BigInt(selectedSession);
 
-  // Fetch results with optional polling
-  const { results, totalVotes, winner, refetch } = useElectionResults(
-    sessionIdToDisplay,
-    autoRefresh
-  );
+  // Fetch results with optional polling - Hook must be called at top level!
+  const { results, totalVotes, winner, refetch } = useElectionResults(sessionIdToDisplay, autoRefresh);
 
   // Check if election is active
   const isElectionActive = Boolean(
@@ -86,12 +93,44 @@ export default function ResultsPage() {
 
   const winnerCandidate = winner ? results.find((r) => r.id === winner.id) : null;
 
+  if (loadingSessionId || loadingStart || loadingEnd) {
+    return (
+      <Box sx={{ p: 4, textAlign: 'center' }}>
+        <LinearProgress sx={{ mb: 2 }} />
+        <Typography variant="h6">Loading election data...</Typography>
+      </Box>
+    );
+  }
+  if (errorSessionId || errorStart || errorEnd) {
+    return (
+      <Box>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Election Results
+        </Typography>
+        <Alert severity="error" sx={{ mt: 3 }}>
+          Error loading results:<br />
+          {errorSessionId && <span>SessionId: {String(errorSessionId)}<br /></span>}
+          {errorStart && <span>Start: {String(errorStart)}<br /></span>}
+          {errorEnd && <span>End: {String(errorEnd)}<br /></span>}
+        </Alert>
+        <Paper sx={{ mt: 2, p: 2, background: '#f9f9f9' }}>
+          <Typography variant="body2" color="text.secondary">
+            <strong>Debug Info:</strong><br />
+            startTime: {String(startTime)}<br />
+            endTime: {String(endTime)}<br />
+            currentSessionId: {String(currentSessionId)}<br />
+            sessionIdToDisplay: {String(sessionIdToDisplay)}
+          </Typography>
+        </Paper>
+      </Box>
+    );
+  }
+
   return (
     <Box>
       <Typography variant="h4" component="h1" gutterBottom>
         Election Results
       </Typography>
-
       {/* Controls */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Grid container spacing={2} alignItems="center">
@@ -124,7 +163,6 @@ export default function ResultsPage() {
             )}
           </Grid>
         </Grid>
-
         {startTime && endTime && (startTime as bigint) > 0n ? (
           <Box sx={{ mt: 2 }}>
             <Typography variant="caption" color="text.secondary" display="block">

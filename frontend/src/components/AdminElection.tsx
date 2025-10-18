@@ -15,6 +15,12 @@ import { useReadContract } from 'wagmi';
 import { VOTING_ABI, VOTING_ADDRESS } from '../lib/contracts';
 
 export default function AdminElection() {
+  const [startTime, setStartTime] = useState<Date | null>(new Date());
+  const [endTime, setEndTime] = useState<Date | null>(
+    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  ); // Default 7 days
+
+  // Call hooks at top level (required by React)
   const { startElection, isPending, isConfirming, isSuccess, error } = useVotingContract();
 
   const { data: currentSessionId } = useReadContract({
@@ -34,11 +40,6 @@ export default function AdminElection() {
     abi: VOTING_ABI,
     functionName: 'end',
   });
-
-  const [startTime, setStartTime] = useState<Date | null>(new Date());
-  const [endTime, setEndTime] = useState<Date | null>(
-    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  ); // Default 7 days
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -206,4 +206,48 @@ contract Voting is Ownable, ReentrancyGuard {
         Candidate memory candidate = candidates[id];
         return (candidate.name, candidate.positions, candidate.active);
     }
+
+    /**
+     * @dev Get all vote counts for a session in a single call
+     * @param sid Session ID to query
+     * @return voteCounts Array of vote counts for each candidate (index 0 is unused, 1-N are candidates)
+     */
+    function getAllVotes(uint256 sid) external view returns (uint256[] memory voteCounts) {
+        voteCounts = new uint256[](candidateCount + 1);
+        for (uint256 i = 1; i <= candidateCount; i++) {
+            voteCounts[i] = votes[sid][i];
+        }
+        return voteCounts;
+    }
+
+    /**
+     * @dev Get all candidates in a single call
+     * @return candidateIds Array of candidate IDs
+     * @return names Array of candidate names
+     * @return allPositions Array of policy positions (flattened: 3 positions per candidate)
+     * @return activeFlags Array of active status flags
+     */
+    function getAllCandidates() external view returns (
+        uint256[] memory candidateIds,
+        string[] memory names,
+        uint8[] memory allPositions,
+        bool[] memory activeFlags
+    ) {
+        candidateIds = new uint256[](candidateCount);
+        names = new string[](candidateCount);
+        allPositions = new uint8[](candidateCount * 3);
+        activeFlags = new bool[](candidateCount);
+
+        for (uint256 i = 1; i <= candidateCount; i++) {
+            Candidate memory candidate = candidates[i];
+            candidateIds[i - 1] = i;
+            names[i - 1] = candidate.name;
+            allPositions[(i - 1) * 3] = candidate.positions[0];
+            allPositions[(i - 1) * 3 + 1] = candidate.positions[1];
+            allPositions[(i - 1) * 3 + 2] = candidate.positions[2];
+            activeFlags[i - 1] = candidate.active;
+        }
+
+        return (candidateIds, names, allPositions, activeFlags);
+    }
 }

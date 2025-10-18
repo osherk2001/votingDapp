@@ -17,13 +17,25 @@ import Grid from '@mui/material/Grid';
 import { useVotingContract, useCandidates } from '../lib/hooks';
 
 export default function AdminCandidates() {
-  const { addCandidate, isPending, isConfirming, isSuccess, error } = useVotingContract();
-  const candidates = useCandidates();
-
   const [name, setName] = useState('');
   const [position1, setPosition1] = useState(50);
   const [position2, setPosition2] = useState(50);
   const [position3, setPosition3] = useState(50);
+
+  // Call hooks at top level (required by React)
+  const { addCandidate, isPending, isConfirming, isSuccess, error } = useVotingContract();
+  const candidates = useCandidates();
+
+  // Check if candidates failed to load
+  if (!candidates) {
+    return (
+      <Box>
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Loading candidates...
+        </Alert>
+      </Box>
+    );
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

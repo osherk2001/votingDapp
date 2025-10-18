@@ -16,13 +16,13 @@ import { keccak256, encodePacked } from 'viem';
 import { MerkleTree } from 'merkletreejs';
 
 export default function AdminVoters() {
-  const { setVoterRoot, useVoterRoot, isPending, isConfirming, isSuccess, error } =
-    useVotingContract();
-  const { data: currentRoot } = useVoterRoot();
-
   const [voters, setVoters] = useState<string[]>([]);
   const [newVoter, setNewVoter] = useState('');
   const [generatedRoot, setGeneratedRoot] = useState<string>('');
+
+  // Call hooks at top level (required by React)
+  const { setVoterRoot, useVoterRoot, isPending, isConfirming, isSuccess, error } = useVotingContract();
+  const { data: currentRoot } = useVoterRoot();
 
   useEffect(() => {
     // Load voters from localStorage

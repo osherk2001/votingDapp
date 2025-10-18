@@ -96,7 +96,6 @@ export default function VotePage() {
 
   if (!isElectionActive) {
     const hasNotStarted = startTime && now < (startTime as bigint);
-    
     return (
       <Box>
         <Typography variant="h4" component="h1" gutterBottom>
@@ -107,6 +106,15 @@ export default function VotePage() {
             ? `The election has not started yet. It will begin on ${new Date(Number(startTime) * 1000).toLocaleString()}.`
             : 'No active election at the moment. Please check back later.'}
         </Alert>
+        <Paper sx={{ mt: 2, p: 2, background: '#f9f9f9' }}>
+          <Typography variant="body2" color="text.secondary">
+            <strong>Debug Info:</strong><br />
+            startTime: {String(startTime)}<br />
+            endTime: {String(endTime)}<br />
+            now: {String(now)}<br />
+            sessionId: {String(currentSessionId)}
+          </Typography>
+        </Paper>
       </Box>
     );
   }
