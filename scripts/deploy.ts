@@ -10,7 +10,7 @@ async function main(): Promise<void> {
   // Deploy BALToken
   console.log("📝 Deploying BALToken...");
   const BALTokenFactory = await ethers.getContractFactory("BALToken");
-  const balToken = await BALTokenFactory.deploy("BAL Token", "BAL");
+  const balToken = await BALTokenFactory.deploy("osher", "OSHER");
   await balToken.waitForDeployment();
   const balTokenAddress = await balToken.getAddress();
   console.log("✅ BALToken deployed to:", balTokenAddress);
