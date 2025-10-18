@@ -18,33 +18,59 @@ export function useMerkleProof(address: `0x${string}` | undefined): MerkleProof 
       return;
     }
 
-    // Load voters from localStorage (same as AdminVoters component)
-    const saved = localStorage.getItem('voters');
-    if (!saved) {
-      setProof([]);
-      setIsWhitelisted(false);
-      return;
-    }
-
-    const voters: string[] = JSON.parse(saved);
     const normalizedAddress = address.toLowerCase();
-    
-    if (!voters.includes(normalizedAddress)) {
-      setProof([]);
-      setIsWhitelisted(false);
-      return;
-    }
 
-    // Generate Merkle proof
-    const leaves = voters.map((addr) =>
-      keccak256(encodePacked(['address'], [addr as `0x${string}`]))
-    );
-    const tree = new MerkleTree(leaves, keccak256, { sortPairs: true });
-    const leaf = keccak256(encodePacked(['address'], [normalizedAddress as `0x${string}`]));
-    const merkleProof = tree.getProof(leaf).map((p) => ('0x' + p.data.toString('hex')) as `0x${string}`);
-
-    setProof(merkleProof);
-    setIsWhitelisted(true);
+    // Prefer server-generated proofs to avoid client/server merkle mismatches
+    fetch('/data/merkle-proofs.json')
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data: { root: `0x${string}`; voters: { address: string; proof: `0x${string}`[] }[] }) => {
+        const entry = data.voters.find((v) => v.address.toLowerCase() === normalizedAddress);
+        if (entry && entry.proof?.length) {
+          setProof(entry.proof);
+          setIsWhitelisted(true);
+          return;
+        }
+        // Fallback to computing a proof locally from whitelist
+        return fetch('/data/whitelist.json')
+          .then((res) => res.json())
+          .then((voters: string[]) => {
+            const lower = voters.map((v) => v.toLowerCase());
+            if (!lower.includes(normalizedAddress)) {
+              setProof([]);
+              setIsWhitelisted(false);
+              return;
+            }
+            const leaves = lower.map((addr) => keccak256(encodePacked(['address'], [addr as `0x${string}`])));
+            const tree = new MerkleTree(leaves, keccak256, { sortPairs: true });
+            const leaf = keccak256(encodePacked(['address'], [normalizedAddress as `0x${string}`]));
+            const merkleProof = tree.getProof(leaf).map((p) => ('0x' + p.data.toString('hex')) as `0x${string}`);
+            setProof(merkleProof);
+            setIsWhitelisted(true);
+          });
+      })
+      .catch(() => {
+        // As a final fallback, try local whitelist
+        fetch('/data/whitelist.json')
+          .then((res) => res.json())
+          .then((voters: string[]) => {
+            const lower = voters.map((v) => v.toLowerCase());
+            if (!lower.includes(normalizedAddress)) {
+              setProof([]);
+              setIsWhitelisted(false);
+              return;
+            }
+            const leaves = lower.map((addr) => keccak256(encodePacked(['address'], [addr as `0x${string}`])));
+            const tree = new MerkleTree(leaves, keccak256, { sortPairs: true });
+            const leaf = keccak256(encodePacked(['address'], [normalizedAddress as `0x${string}`]));
+            const merkleProof = tree.getProof(leaf).map((p) => ('0x' + p.data.toString('hex')) as `0x${string}`);
+            setProof(merkleProof);
+            setIsWhitelisted(true);
+          })
+          .catch(() => {
+            setProof([]);
+            setIsWhitelisted(false);
+          });
+      });
   }, [address]);
 
   return { proof, isWhitelisted };

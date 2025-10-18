@@ -7,7 +7,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Chip from '@mui/material/Chip';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { useAccount, useReadContract } from 'wagmi';
+import { useAccount, useReadContract, useBlockNumber } from 'wagmi';
 import { VOTING_ABI, VOTING_ADDRESS } from '../lib/contracts';
 import { useVotingContract } from '../lib/hooks';
 import { useCountdown } from '../lib/useCountdown';
@@ -37,35 +37,64 @@ export default function VotePage() {
     functionName: 'end',
   });
 
-  const { data: hasVoted } = useReadContract({
+  const { data: hasVoted, refetch: refetchHasVoted } = useReadContract({
     address: VOTING_ADDRESS,
     abi: VOTING_ABI,
     functionName: 'voted',
     args: address && currentSessionId ? [currentSessionId, address] : undefined,
+    // Keep the UI responsive: enable only when inputs exist and do a light poll
+    query: {
+      enabled: Boolean(address && currentSessionId),
+      refetchInterval: 4000,
+    },
   });
 
   const countdown = useCountdown(endTime as bigint | undefined);
 
   const [votingCandidateId, setVotingCandidateId] = useState<number | null>(null);
 
+  // Watch new blocks to keep read state in sync (e.g., hasVoted)
+  const { data: blockNumber } = useBlockNumber({ watch: true });
+
   const now = BigInt(Math.floor(Date.now() / 1000));
   const isElectionActive =
     startTime && endTime && now >= (startTime as bigint) && now <= (endTime as bigint);
 
-  const handleVote = (candidateId: number) => {
+  const [voteError, setVoteError] = useState<string | null>(null);
+  const handleVote = async (candidateId: number) => {
+    setVoteError(null);
     if (!proof || proof.length === 0) {
-      alert('You are not whitelisted to vote.');
+      setVoteError('You are not whitelisted to vote.');
       return;
     }
     setVotingCandidateId(candidateId);
-    vote(candidateId, proof);
+    try {
+      await vote(candidateId, proof);
+    } catch (err: any) {
+      // Try to decode common contract errors
+      let reason = err?.reason || err?.message || 'Transaction reverted.';
+      if (err?.data?.message?.includes('NotInWindow')) reason = 'Voting is not currently open.';
+      if (err?.data?.message?.includes('AlreadyVoted')) reason = 'You have already voted in this election.';
+      if (err?.data?.message?.includes('NotWhitelisted')) reason = 'Your address is not whitelisted to vote.';
+      if (err?.data?.message?.includes('InvalidCandidate')) reason = 'Selected candidate is not valid.';
+      setVoteError(reason);
+    }
   };
 
   useEffect(() => {
     if (isSuccess) {
       setVotingCandidateId(null);
+      // Ensure the "has voted" banner appears immediately after a successful vote
+      refetchHasVoted?.();
     }
-  }, [isSuccess]);
+  }, [isSuccess, refetchHasVoted]);
+
+  // On each new block, lightly refetch hasVoted to keep UI consistent
+  useEffect(() => {
+    if (blockNumber) {
+      refetchHasVoted?.();
+    }
+  }, [blockNumber, refetchHasVoted]);
 
   if (!isConnected) {
     return (
@@ -171,9 +200,9 @@ export default function VotePage() {
         </Paper>
       ) : null}
 
-      {error && (
+      {(error || voteError) && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          Error: {error.message}
+          Error: {voteError || error?.message}
         </Alert>
       )}
 
@@ -183,12 +212,14 @@ export default function VotePage() {
         </Alert>
       )}
 
-      <VotingPanel
-        onVote={handleVote}
-        isLoading={isPending || isConfirming}
-        disabled={!!hasVoted || countdown.isExpired}
-        hasVoted={!!hasVoted}
-      />
+      {!hasVoted ? (
+        <VotingPanel
+          onVote={handleVote}
+          isLoading={isPending || isConfirming}
+          disabled={!!hasVoted || countdown.isExpired}
+          hasVoted={!!hasVoted}
+        />
+      ) : null}
     </Box>
   );
 }
